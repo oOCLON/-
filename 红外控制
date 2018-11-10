@@ -1,0 +1,148 @@
+#include<reg52.h>
+#include<intrins.h>
+typedef unsigned char u8;
+typedef unsigned int u16;
+sbit PWM1 = P2^0;		 
+sbit PWM2 = P2^1;
+sbit led = P2^3;
+
+sbit irin=P3^2;		
+sbit SRCLK=P3^6	;
+sbit CLK=P3^5	;
+sbit SER=P3^4	;
+u16 count = 100;
+u8 temp;
+u8 irvalue[6];
+u8 time;  
+void irinit()//初始化红外
+{
+	IT0=1;
+	EX0=1;
+	EA=1;
+	irin=1;
+}
+void init0()//定时器中断
+{
+	TMOD = 0x01; 	// 方式一
+	TH0 = (65536 - 10)/256;		// 赋初值
+	TL0 = (65536 - 10)%256;
+	TR0 = 1;       // 开启定时器0
+	EA = 1;		   // 开启总中断
+	ET0 = 1;       // 定时器0允许中断
+}
+void delay(u16 i)
+{
+	while(i--);
+}
+void main(void)
+{	
+	irinit();//初始化中断
+	init0(); 
+	while(1)
+	{
+	if(irvalue[2]==0x45)
+	 {	
+		count=0;	
+	 }
+	 if(irvalue[2]==0x46)
+	 {	count=50;
+	 		
+	 	
+	 }
+	  if(irvalue[2]==0x47)
+	 {	count=20;
+		
+	 }
+	 if(irvalue[2]==0x44)
+	 {	
+		count=100;
+	 }
+	}
+
+}		 
+
+
+void T0_inter() interrupt 1
+{
+	TR0 = 0;
+	TH0 = (65536 - 10)/256;
+	TL0 = (65536 - 10)%256;
+	TR0 = 1;
+	
+ 
+	PWM1 = 0;
+	time ++ ;
+	if (time < count)	// 因为总数是100， 所以可以直接看出占空比是多少。
+	{
+		PWM2 = 1;
+	}
+	else
+	{
+		PWM2 = 0;
+	}
+	if (time >= 100)
+	{
+		time = 0;
+	}
+}
+void readir()interrupt 0//接收端读取中断
+{
+	u8 j,k;
+	u16 err;
+	time=0;
+	delay(700);
+	if(irin==0)
+	{
+		err=1000;
+		while((irin==0)&&(err>0))
+		{
+			delay(1);
+			err--;
+		}
+		if(irin==1)
+		{
+			err=500;
+			while((irin==1)&&(err>0))
+			{
+				delay(1);
+				err--;
+			}
+			for(k=0;k<4;k++)
+			{
+				for(j=0;j<8;j++)
+				{
+					err=60;
+					while((irin==0)&&(err>0))
+					{delay(1);
+					err--;
+					}
+					err=500;
+					while((irin==1)&&(err>0))
+					{
+						delay(10);
+						time++;
+						err--;
+						if(time>30)
+						{
+							return;
+						}
+					}
+					irvalue[k]>>=1;
+					if(time>=8)
+					{
+						irvalue[k]|=0x80;
+					}
+					time=0;
+				}
+			}
+		}
+		if(irvalue[2]!=~irvalue[3])
+		{
+		return;
+		}
+	}
+}
+
+
+
+
