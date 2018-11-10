@@ -1,0 +1,102 @@
+#include<reg52.h>
+#include<intrins.h>
+typedef unsigned char u8;
+typedef unsigned int u16; 
+sbit PWM1 = P2^0;		 
+sbit PWM2 = P2^1;
+sbit led1 = P2^3;
+sbit led2 = P2^4;
+sbit led3 = P2^5;
+u16 count = 100, time; 
+u8 i;	 
+void init0()//定时器中断
+{
+	TMOD = 0x01; 	// 方式一
+	TH0 = (65536 - 10)/256;		// 赋初值
+	TL0 = (65536 - 10)%256;
+	TR0 = 1;       // 开启定时器0
+	EA = 1;		   // 开启总中断
+	ET0 = 1;       // 定时器0允许中断
+}
+void usartinit()//串口初始化
+{
+	TMOD=0x20;//选择工作方式2   0010 0000
+	TH1=0xF3;
+	TL1=0XF3;//计数器初始值设置4800
+	PCON=0x80;//波特率加倍
+	TR1=1;	 //打开计数器
+	SCON=0X50; //0101 0000 设置为工作方式1
+	ES=1;//打开接收串口中断
+	EA=1;//打开总中断
+} 
+
+void delayms(u16 i)   // 延迟函数 
+{
+		while(i--);
+}
+void main()
+{	
+	usartinit();
+	while(1);
+}
+
+void usart() interrupt 4 //串口中断
+{
+
+   	u8 receivedata;//接收缓存器 数据
+	i=SBUF;
+		init0();
+		if(i=='1')
+		{	
+			led1=0;	
+			count=50;  	
+		}
+		else if(i=='2')
+		{
+			led2=0;
+			count=100;	
+		}
+		else if(i=='3')
+		{
+			led3=0;
+			count=0;		
+		}
+		else if(i=='4')
+		{
+			count=100;		
+		}
+
+	receivedata=SBUF;//出去接收到的数据
+	RI=0;//清除接收中断标志位
+	SBUF=receivedata;//将接收到的数据放入到发送寄存器
+	while(!TI);//等待发送数据完成
+	TI=0;//清除发送完成标志位
+
+}
+void T0_inter() interrupt 1
+{
+	TR0 = 0;
+	TH0 = (65536 - 10)/256;
+	TL0 = (65536 - 10)%256;
+	TR0 = 1;
+	
+ 
+	PWM1 = 0;
+	time ++ ;
+	if (time < count)	// 因为总数是100， 所以可以直接看出占空比是多少。
+	{
+		PWM2 = 1;
+	}
+	else
+	{
+		PWM2 = 0;
+	}
+	if (time >= 100)
+	{
+		time = 0;
+	}
+}
+
+
+  
+
