@@ -1,0 +1,105 @@
+//过P2^0和P2^1口来控制电机的转动， 通过按键来控制电机转动的快慢
+#include <reg52.h> 
+typedef unsigned int u16;
+typedef unsigned char u8; 
+sbit PWM1 = P2^0;		 
+sbit PWM2 = P2^1;
+sbit key_add = P3^2;
+sbit key_less = P3^3;
+sbit k1 = P3^0;
+sbit k2 = P3^1;
+u8 i;
+u16 count = 50, time;
+void init0()//定时器中断
+{
+	TMOD = 0x01; 	// 方式一
+	TH0 = (65536 - 10)/256;		// 赋初值
+	TL0 = (65536 - 10)%256;
+	TR0 = 1;       // 开启定时器0
+	EA = 1;		   // 开启总中断
+	ET0 = 1;       // 定时器0允许中断
+}
+void delayms(u16 i)   // 延迟函数 
+{
+		while(i--);
+}
+void speed_add()     // 加速函数
+{
+	if (key_add == 0)
+	{
+		delayms(200);
+		if (key_add == 0)
+		{
+			count+=20;  // 通过改变占空比来进行加速
+		}
+		while (!key_add);
+	}
+}							   	
+void speed_less()	//减速函数 
+{
+
+		if (key_less == 0)
+		{
+			count -= 20;
+		}
+		while (!key_less);
+} 
+void speed0()	//开 
+{
+	if (k1 == 0)
+	{
+		delayms(200);
+		if (k1 == 0)
+		{
+			count=1;
+		}
+		while (!k1);
+	}
+} 
+void speed1()	//关 
+{
+	if (k2 == 0)
+	{
+		delayms(200);
+		if (k2 == 0)
+		{
+			count=0;
+		}
+		while (!k2);
+	}
+} 
+int main (void)
+{
+	init0();
+	while (1)
+	{
+		speed_add();
+		speed_less();
+		speed0();
+		speed1();	
+	}
+	return 0;
+}
+void T0_inter() interrupt 1
+{
+	TR0 = 0;
+	TH0 = (65536 - 10)/256;
+	TL0 = (65536 - 10)%256;
+	TR0 = 1;
+	
+ 
+	PWM1 = 0;
+	time ++ ;
+	if (time < count)	// 因为总数是100， 所以可以直接看出占空比是多少。
+	{
+		PWM2 = 1;
+	}
+	else
+	{
+		PWM2 = 0;
+	}
+	if (time >= 100)
+	{
+		time = 0;
+	}
+}
